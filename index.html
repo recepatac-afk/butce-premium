@@ -10,8 +10,88 @@
     <!-- SheetJS for Excel Parsing -->
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 </head>
-<body>
-    <div class="app-container">
+<body id="body-main">
+    <!-- Auth Screen Overlay -->
+    <div id="auth-overlay" class="auth-overlay">
+        <div class="auth-box" id="box-login">
+            <h2 class="auth-title"><i class="fa-solid fa-lock"></i> Bütçe Pro Giriş</h2>
+            <form id="form-login">
+                <div class="form-group">
+                    <label>Kullanıcı Adı</label>
+                    <input type="text" id="login-user" class="form-input auth-input" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label>Şifre</label>
+                    <input type="password" id="login-pass" class="form-input auth-input" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn btn-primary w-100 mt-10" style="padding: 12px; font-size:1.1rem;">Giriş Yap</button>
+            </form>
+            <div class="auth-links">
+                <span onclick="switchAuthView('register')">Hesabın yok mu? Kayıt Ol</span>
+                <span onclick="switchAuthView('forgot')">Şifremi Unuttum</span>
+            </div>
+        </div>
+
+        <div class="auth-box hidden" id="box-register">
+            <h2 class="auth-title"><i class="fa-solid fa-user-plus"></i> Yeni Kayıt</h2>
+            <form id="form-register">
+                <div class="form-group">
+                    <label>Adınız Soyadınız</label>
+                    <input type="text" id="reg-name" class="form-input auth-input" required>
+                </div>
+                <div class="form-group">
+                    <label>Kullanıcı Adı Belirleyin</label>
+                    <input type="text" id="reg-user" class="form-input auth-input" required>
+                </div>
+                <div class="form-group">
+                    <label>Şifre Belirleyin</label>
+                    <input type="password" id="reg-pass" class="form-input auth-input" required>
+                </div>
+                <div class="form-group">
+                    <label>Güvenlik Sorusu Seçin</label>
+                    <select id="reg-question" class="form-input auth-input" required>
+                        <option value="q1">İlkokul öğretmeninizin adı nedir?</option>
+                        <option value="q2">Çocukluk lakabınız nedir?</option>
+                        <option value="q3">En sevdiğiniz film karakteri nedir?</option>
+                        <option value="q4">İlk evcil hayvanınızın adı nedir?</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Güvenlik Cevabı (Kurtarmak için gereklidir)</label>
+                    <input type="text" id="reg-answer" class="form-input auth-input" required>
+                </div>
+                <button type="submit" class="btn btn-success w-100 mt-10" style="padding: 12px; font-size:1.1rem;">Kayıt Ol ve Giriş Yap</button>
+            </form>
+            <div class="auth-links">
+                <span onclick="switchAuthView('login')"><i class="fa-solid fa-arrow-left"></i> Giriş Ekranına Dön</span>
+            </div>
+        </div>
+
+        <div class="auth-box hidden" id="box-forgot">
+            <h2 class="auth-title"><i class="fa-solid fa-key"></i> Şifremi Unuttum</h2>
+            <p class="text-muted text-small mb-10" style="text-align:center;">Şifrenizi görmek için kayıtlı kullanıcı adınızı ve güvenlik cevabınızı giriniz.</p>
+            <form id="form-forgot">
+                <div class="form-group">
+                    <label>Kayıtlı Kullanıcı Adınız</label>
+                    <input type="text" id="forgot-user" class="form-input auth-input" required>
+                </div>
+                <div class="form-group">
+                    <label>Güvenlik Sorunuzun Cevabı</label>
+                    <input type="text" id="forgot-answer" class="form-input auth-input" required>
+                </div>
+                <button type="submit" class="btn btn-warning w-100 mt-10" style="padding: 12px; color:black; font-weight:bold;">Şifremi Hatırlat</button>
+            </form>
+            <div id="recovery-result" class="hidden mt-10" style="padding: 15px; border-radius: 8px; text-align: center; font-size: 1.1rem; border: 1px solid var(--success-color); color: var(--success-color);">
+                <!-- Şifre buraya yazılacak -->
+            </div>
+            <div class="auth-links">
+                <span onclick="switchAuthView('login')"><i class="fa-solid fa-arrow-left"></i> Giriş Ekranına Dön</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Budget App Container -->
+    <div id="main-app" class="app-container hidden">
         <!-- Sidebar Navigation -->
         <nav class="sidebar">
             <div class="sidebar-header">
@@ -31,8 +111,11 @@
             <header class="top-header">
                 <h1 id="page-title">Özet</h1>
                 <div class="user-profile">
-                    <span>Premium Kullanıcı</span>
+                    <span id="logged-user-name" style="font-weight:600;">Premium Kullanıcı</span>
                     <i class="fa-solid fa-circle-user fa-2x"></i>
+                    <button class="btn btn-danger btn-sm" onclick="logout()" style="margin-left:15px;" title="Çıkış Yap">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
                 </div>
             </header>
 

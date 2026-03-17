@@ -1,6 +1,8 @@
 const STATE = {
     accounts: JSON.parse(localStorage.getItem('bpr_accounts')) || [],
-    transactions: JSON.parse(localStorage.getItem('bpr_transactions')) || []
+    transactions: JSON.parse(localStorage.getItem('bpr_transactions')) || [],
+    users: JSON.parse(localStorage.getItem('bpr_users')) || [],
+    currentUser: JSON.parse(localStorage.getItem('bpr_logged_user')) || null
 };
 
 const CATEGORIES = {
@@ -21,6 +23,102 @@ const CATEGORIES = {
         { id: 'v_virman', label: 'Virman (Hesaplar Arası)' }
     ]
 };
+
+// --- Authentication Logic ---
+function initAuth() {
+    if (STATE.currentUser) {
+        // Logged in
+        document.getElementById('auth-overlay').classList.add('hidden');
+        document.getElementById('main-app').classList.remove('hidden');
+        document.getElementById('logged-user-name').innerText = STATE.currentUser.name;
+        updateUI();
+    } else {
+        // Not logged in
+        document.getElementById('auth-overlay').classList.remove('hidden');
+        document.getElementById('main-app').classList.add('hidden');
+        switchAuthView('login');
+    }
+}
+
+function switchAuthView(viewId) {
+    document.querySelectorAll('.auth-box').forEach(box => box.classList.add('hidden'));
+    document.getElementById(`box-${viewId}`).classList.remove('hidden');
+    document.getElementById('recovery-result').classList.add('hidden');
+}
+
+// Register
+document.getElementById('form-register').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = document.getElementById('reg-name').value.trim();
+    const user = document.getElementById('reg-user').value.trim().toLowerCase();
+    const pass = document.getElementById('reg-pass').value;
+    const question = document.getElementById('reg-question').value;
+    const answer = document.getElementById('reg-answer').value.trim().toLowerCase();
+
+    if (STATE.users.find(u => u.username === user)) {
+        alert("Bu kullanıcı adı zaten alınmış. Lütfen başka bir tane seçin.");
+        return;
+    }
+
+    const newUser = { name, username: user, password: pass, question, answer };
+    STATE.users.push(newUser);
+    localStorage.setItem('bpr_users', JSON.stringify(STATE.users));
+
+    // Auto login
+    doLogin(newUser);
+    document.getElementById('form-register').reset();
+});
+
+// Login
+document.getElementById('form-login').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const user = document.getElementById('login-user').value.trim().toLowerCase();
+    const pass = document.getElementById('login-pass').value;
+
+    const foundUser = STATE.users.find(u => u.username === user && u.password === pass);
+
+    if (foundUser) {
+        doLogin(foundUser);
+        document.getElementById('form-login').reset();
+    } else {
+        alert("Kullanıcı adı veya şifre hatalı!");
+    }
+});
+
+function doLogin(userObj) {
+    STATE.currentUser = { name: userObj.name, username: userObj.username };
+    localStorage.setItem('bpr_logged_user', JSON.stringify(STATE.currentUser));
+    initAuth();
+}
+
+function logout() {
+    STATE.currentUser = null;
+    localStorage.removeItem('bpr_logged_user');
+    initAuth();
+}
+
+// Forgot Password
+document.getElementById('form-forgot').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const user = document.getElementById('forgot-user').value.trim().toLowerCase();
+    const answer = document.getElementById('forgot-answer').value.trim().toLowerCase();
+    
+    const foundUser = STATE.users.find(u => u.username === user);
+    const resultBox = document.getElementById('recovery-result');
+
+    if (!foundUser) {
+        alert("Böyle bir kullanıcı adı bulunamadı.");
+        return;
+    }
+
+    if (foundUser.answer === answer) {
+        resultBox.innerHTML = `Hesabınız doğrulandı.<br>Şifreniz: <strong>${foundUser.password}</strong>`;
+        resultBox.classList.remove('hidden');
+    } else {
+        alert("Güvenlik cevabı yanlış!");
+        resultBox.classList.add('hidden');
+    }
+});
 
 // --- Camera & Image Handling ---
 let cameraStream = null;
@@ -833,5 +931,5 @@ function renderBreakdown(elementId, aggregation, colorVar) {
 
 // Init
 document.addEventListener('DOMContentLoaded', () => {
-    updateUI();
+    initAuth();
 });
