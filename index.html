@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bütçe Takibi Premium</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <!-- SheetJS for Excel Parsing -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fa-solid fa-wallet"></i> Bütçe Pro</h2>
+            </div>
+            <ul class="nav-links">
+                <li class="active" data-view="dashboard"><i class="fa-solid fa-chart-pie"></i> Özet (Dashboard)</li>
+                <li data-view="accounts"><i class="fa-solid fa-building-columns"></i> Hesaplar & Açılış</li>
+                <li data-view="transactions"><i class="fa-solid fa-money-bill-transfer"></i> Muhasebe İşlemleri</li>
+                <li data-view="reports"><i class="fa-solid fa-file-invoice-dollar"></i> Detaylı Raporlar</li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="top-header">
+                <h1 id="page-title">Özet</h1>
+                <div class="user-profile">
+                    <span>Premium Kullanıcı</span>
+                    <i class="fa-solid fa-circle-user fa-2x"></i>
+                </div>
+            </header>
+
+            <!-- Views -->
+            <div id="views">
+                <!-- Dashboard View -->
+                <section id="view-dashboard" class="view-section active">
+                    <div class="cards-grid">
+                        <div class="stat-card total-balance">
+                            <h3><i class="fa-solid fa-scale-balanced"></i> Net Varlık (Kasa+Banka-Kredi)</h3>
+                            <h2 id="dash-total-balance">₺0.00</h2>
+                        </div>
+                        <div class="stat-card income">
+                            <h3><i class="fa-solid fa-arrow-trend-up"></i> Bu Ay Tahsilat (Giren)</h3>
+                            <h2 id="dash-monthly-income">₺0.00</h2>
+                        </div>
+                        <div class="stat-card expense">
+                            <h3><i class="fa-solid fa-arrow-trend-down"></i> Bu Ay Tediye (Çıkan)</h3>
+                            <h2 id="dash-monthly-expense">₺0.00</h2>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Accounts View -->
+                <section id="view-accounts" class="view-section hidden">
+                    <div class="section-header">
+                        <h2>Tüm Hesaplar (Kasa & Banka & Kart)</h2>
+                        <button class="btn btn-primary" onclick="openModal('account-modal')"><i class="fa-solid fa-plus"></i> Yeni Hesap Aç</button>
+                    </div>
+                    <div class="accounts-grid" id="accounts-list">
+                        <!-- Accounts will be listed here -->
+                    </div>
+                </section>
+
+                <!-- Transactions View -->
+                <section id="view-transactions" class="view-section hidden">
+                    <div class="section-header">
+                        <h2>Finansal İşlemler (Fişler)</h2>
+                        <div class="action-buttons">
+                            <button class="btn btn-primary" onclick="triggerExcelImport()"><i class="fa-solid fa-file-excel"></i> Ekstre (Excel/CSV) Yükle</button>
+                            <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelUpload(event)">
+                            <div style="width: 10px; display:inline-block;"></div> <!-- spacer -->
+                            
+                            <button class="btn btn-success" onclick="openModal('transaction-modal', 'income')"><i class="fa-solid fa-arrow-down"></i> Tahsilat (Para Girişi)</button>
+                            <button class="btn btn-danger" onclick="openModal('transaction-modal', 'expense')"><i class="fa-solid fa-arrow-up"></i> Tediye (Para Çıkışı)</button>
+                            <button class="btn btn-secondary" onclick="openModal('transaction-modal', 'transfer')"><i class="fa-solid fa-right-left"></i> Virman (Hesabı Aktar)</button>
+                        </div>
+                    </div>
+                    <div class="content-box">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Belge</th>
+                                    <th>Tarih</th>
+                                    <th>Tür & Kategori</th>
+                                    <th>İlgili Kişi / Kurum</th>
+                                    <th>Hesap(lar)</th>
+                                    <th>Açıklama</th>
+                                    <th class="align-right">Tutar</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transactions-list">
+                                <!-- Transactions here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Reports View -->
+                <section id="view-reports" class="view-section hidden">
+                    <div class="section-header">
+                        <h2>Detaylı Raporlar</h2>
+                        <div class="filter-group">
+                            <input type="date" id="report-start-date" class="form-input">
+                            <span>-</span>
+                            <input type="date" id="report-end-date" class="form-input">
+                            <button class="btn btn-secondary" onclick="generateReport()">Filtrele</button>
+                        </div>
+                    </div>
+                    <div class="reports-summary">
+                        <div class="content-box">
+                            <h3>Tahsilat (Gelir) Kırılımı</h3>
+                            <ul class="breakdown-list" id="report-income-breakdown"></ul>
+                        </div>
+                        <div class="content-box">
+                            <h3>Tediye (Gider & Yatırım) Kırılımı</h3>
+                            <ul class="breakdown-list" id="report-expense-breakdown"></ul>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <!-- Add Account Modal -->
+    <div id="account-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('account-modal')">&times;</span>
+            <h2>Yeni Hesap Açılışı</h2>
+            <form id="form-account">
+                <div class="form-group">
+                    <label>Hesap Adı</label>
+                    <input type="text" id="acc-name" class="form-input" required placeholder="Örn: Garanti Maaş, YapıKredi, Ev Kasası">
+                </div>
+                <div class="form-group">
+                    <label>Hesap Türü</label>
+                    <select id="acc-type" class="form-input" onchange="toggleIbanField()">
+                        <option value="bank">Banka Hesabı</option>
+                        <option value="cash">Nakit / Kasa</option>
+                        <option value="credit">Kredi Kartı (Bağımsız)</option>
+                    </select>
+                </div>
+
+                <!-- IBAN Field (Hidden for Cash/Credit) -->
+                <div class="form-group" id="iban-group">
+                    <label>IBAN Numarası</label>
+                    <input type="text" id="acc-iban" class="form-input" placeholder="TR..." maxlength="34">
+                </div>
+
+                <div class="form-group">
+                    <label>Açılış Bakiyesi (Nakit / Vadesiz)</label>
+                    <input type="number" id="acc-balance" class="form-input" required step="0.01" value="0" oninput="toggleDueDateField()">
+                </div>
+
+                <!-- Due Date (Shown for Credit cards or negative balances) -->
+                <div class="form-group hidden" id="due-date-group">
+                    <label>Son Ödeme Tarihi</label>
+                    <input type="date" id="acc-due-date" class="form-input">
+                </div>
+
+                <!-- Sub-Credit Card Option (Only for Bank type) -->
+                <div class="form-group" id="sub-credit-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="acc-has-credit" onchange="toggleSubCreditFields()">
+                        Bu Bankaya Ait Kredi Kartı Eklensin mi? (Alt Hesap)
+                    </label>
+                </div>
+
+                <div class="form-group hidden" id="sub-credit-fields">
+                    <label>Kredi Kartı Güncel Borcu (Sıfır veya Eksi Değer)</label>
+                    <input type="number" id="acc-credit-balance" class="form-input" step="0.01" value="0" placeholder="Örn: -5000">
+                    
+                    <label style="margin-top: 15px;">Kredi Kartı Son Ödeme Tarihi</label>
+                    <input type="date" id="acc-credit-due-date" class="form-input">
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">Hesabı/Hesapları Yarat</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Transaction Modal -->
+    <div id="transaction-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('transaction-modal')">&times;</span>
+            <h2 id="tx-modal-title">İşlem Fişi Ekle</h2>
+            <form id="form-transaction">
+                <input type="hidden" id="tx-type">
+                
+                <div class="form-group">
+                    <label>Tarih</label>
+                    <input type="date" id="tx-date" class="form-input" required>
+                </div>
+                
+                <div class="form-group" id="group-category">
+                    <label>İşlem Kategorisi</label>
+                    <select id="tx-category" class="form-input">
+                        <!-- Options populated dynamically based on type -->
+                    </select>
+                </div>
+                
+                <div class="form-group" id="group-party">
+                    <label id="lbl-tx-party">İlgili Kişi veya Kurum</label>
+                    <input type="text" id="tx-party" class="form-input" placeholder="Örn: Nuray Ataç, Garanti, Market vb.">
+                </div>
+                
+                <div class="form-group" id="group-account">
+                    <label id="lbl-tx-account">İşlem Yapılacak Hesap</label>
+                    <select id="tx-account" class="form-input" required>
+                        <!-- Accounts populated here -->
+                    </select>
+                </div>
+
+                <!-- Only for Transfer/Virman -->
+                <div class="form-group hidden" id="group-account-to">
+                    <label>Alıcı Hesap (Hedef)</label>
+                    <select id="tx-account-to" class="form-input">
+                        <!-- Accounts populated here -->
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Tutar</label>
+                    <input type="number" id="tx-amount" class="form-input" required step="0.01" min="0.01">
+                </div>
+                
+                <div class="form-group">
+                    <label>Açıklama (İsteğe bağlı)</label>
+                    <input type="text" id="tx-desc" class="form-input" placeholder="Market, Maaş vb.">
+                </div>
+
+                <!-- Receipt & Camera Section -->
+                <div class="form-group receipt-section">
+                    <label>Belge / Fiş / Dekont (İsteğe bağlı)</label>
+                    <div class="receipt-actions">
+                        <label class="btn btn-secondary btn-sm" for="tx-receipt-file">
+                            <i class="fa-solid fa-folder-open"></i> Dosya Seç
+                        </label>
+                        <input type="file" id="tx-receipt-file" accept="image/*" class="hidden" onchange="handleFileUpload(event)">
+                        
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="openCamera()">
+                            <i class="fa-solid fa-camera"></i> Fotoğraf Çek
+                        </button>
+                    </div>
+                    
+                    <!-- Camera Viewport (Hidden initially) -->
+                    <div id="camera-container" class="hidden">
+                        <video id="camera-video" autoplay playsinline></video>
+                        <div class="camera-controls">
+                            <button type="button" class="btn btn-primary btn-sm" onclick="takeSnapshot()"><i class="fa-solid fa-camera-retro"></i> Çek</button>
+                            <button type="button" class="btn btn-danger btn-sm" onclick="closeCamera()"><i class="fa-solid fa-xmark"></i> Kapat</button>
+                        </div>
+                    </div>
+
+                    <!-- Hidden Canvas for processing -->
+                    <canvas id="camera-canvas" class="hidden"></canvas>
+                    
+                    <!-- Hidden Base64 string -->
+                    <input type="hidden" id="tx-receipt-data">
+
+                    <!-- Thumbnail Preview -->
+                    <div id="receipt-preview-container" class="hidden mt-10">
+                        <img id="receipt-preview-img" src="" alt="Belge Önizleme">
+                        <button type="button" class="btn btn-danger btn-sm w-100" onclick="removeReceipt()"><i class="fa-solid fa-trash"></i> Belgeyi Kaldır</button>
+                    </div>
+                </div>
+
+                <div id="transfer-warning" class="text-warning text-small hidden mb-10">
+                    <i class="fa-solid fa-circle-info"></i> Virman işleminde toplam varlığınız değişmez, sadece hesap bakiyeleri güncellenir.
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-100">İşlemi Kaydet (Muhasebeleştir)</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Image Viewer Modal -->
+    <div id="image-modal" class="modal">
+        <div class="modal-content image-viewer">
+            <span class="close" onclick="closeModal('image-modal')">&times;</span>
+            <img id="image-viewer-img" src="" alt="Tam Boyutlu Belge">
+        </div>
+    </div>
+
+    <!-- Excel Mapping Modal -->
+    <div id="mapping-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('mapping-modal')">&times;</span>
+            <h2>Sütunları Eşleştir (Excel/CSV)</h2>
+            <p class="text-muted text-small mb-10">Lütfen yüklediğiniz dosyadaki sütunların (başlıkların) Bütçe sisteminde nereye denk geldiğini seçiniz.</p>
+            
+            <form id="form-mapping">
+                <div class="form-group">
+                    <label>Para Hangi Hesaba Girecek / Çıkacak?</label>
+                    <select id="map-target-account" class="form-input" required>
+                        <!-- Accounts populated here -->
+                    </select>
+                </div>
+                
+                <div class="form-group mt-10" style="padding: 15px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                    <div class="form-group mb-10">
+                        <label>Tarih Sütunu</label>
+                        <select id="map-col-date" class="form-input" required></select>
+                    </div>
+                    <div class="form-group mb-10">
+                        <label>Tutar Sütunu (Eksi değerler Gider, Artılar Gelir sayılır)</label>
+                        <select id="map-col-amount" class="form-input" required></select>
+                    </div>
+                    <div class="form-group mb-10">
+                        <label>Açıklama Sütunu</label>
+                        <select id="map-col-desc" class="form-input" required></select>
+                    </div>
+                    <div class="form-group mb-10">
+                        <label>Kişi / Kurum Sütunu (Opsiyonel)</label>
+                        <select id="map-col-party" class="form-input">
+                            <option value="">-- Boş Bırak (Kullanma) --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="mapping-stats" class="text-warning text-small mb-10">
+                    <!-- Satır sayısı bilgisi -->
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-file-import"></i> İşlemleri İçe Aktar</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
