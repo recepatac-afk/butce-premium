@@ -5,6 +5,34 @@ const STATE = {
     currentUser: JSON.parse(localStorage.getItem('bpr_logged_user')) || null
 };
 
+// Migration: Ensure the first registered user is always Admin
+// This handles users who registered before the permission system was added
+(function migrateUsers() {
+    if (STATE.users.length === 0) return;
+    let changed = false;
+    STATE.users.forEach((u, idx) => {
+        if (idx === 0 && !u.isAdmin) {
+            u.isAdmin = true;
+            u.permissions = { canAddAccount: true, canAddTransaction: true, canDeleteTransaction: true, canImportExcel: true };
+            changed = true;
+        } else if (idx > 0 && u.isAdmin === undefined) {
+            u.isAdmin = false;
+            u.permissions = u.permissions || { canAddAccount: false, canAddTransaction: false, canDeleteTransaction: false, canImportExcel: false };
+            changed = true;
+        }
+    });
+    if (changed) localStorage.setItem('bpr_users', JSON.stringify(STATE.users));
+    // Also refresh currentUser session in case it's outdated
+    if (STATE.currentUser) {
+        const fresh = STATE.users.find(u => u.username === STATE.currentUser.username);
+        if (fresh) {
+            STATE.currentUser.isAdmin = fresh.isAdmin || false;
+            STATE.currentUser.permissions = fresh.permissions || {};
+            localStorage.setItem('bpr_logged_user', JSON.stringify(STATE.currentUser));
+        }
+    }
+})();
+
 const CATEGORIES = {
     income: [
         { id: 't_kendi', label: 'Kendimin Gelirleri' },
