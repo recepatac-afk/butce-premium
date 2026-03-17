@@ -27,11 +27,24 @@ const CATEGORIES = {
 // --- Authentication Logic ---
 function initAuth() {
     if (STATE.currentUser) {
-        // Logged in
+        // Reload current user's permissions in case they changed
+        const freshUser = STATE.users.find(u => u.username === STATE.currentUser.username);
+        if (freshUser) {
+            STATE.currentUser.isAdmin = freshUser.isAdmin || false;
+            STATE.currentUser.permissions = freshUser.permissions || {};
+        }
+
         document.getElementById('auth-overlay').classList.add('hidden');
         document.getElementById('main-app').classList.remove('hidden');
         document.getElementById('logged-user-name').innerText = STATE.currentUser.name;
+
+        // Show/hide admin nav link
+        const navUsers = document.getElementById('nav-users');
+        if (STATE.currentUser.isAdmin) navUsers.classList.remove('hidden');
+        else navUsers.classList.add('hidden');
+
         updateUI();
+        checkPermissions();
     } else {
         // Not logged in
         document.getElementById('auth-overlay').classList.remove('hidden');
@@ -60,7 +73,14 @@ document.getElementById('form-register').addEventListener('submit', (e) => {
         return;
     }
 
-    const newUser = { name, username: user, password: pass, question, answer };
+    // First user registered becomes Admin automatically
+    const isFirstUser = STATE.users.length === 0;
+    const defaultPerms = { canAddAccount: false, canAddTransaction: false, canDeleteTransaction: false, canImportExcel: false };
+    const newUser = {
+        name, username: user, password: pass, question, answer,
+        isAdmin: isFirstUser,
+        permissions: isFirstUser ? { canAddAccount: true, canAddTransaction: true, canDeleteTransaction: true, canImportExcel: true } : defaultPerms
+    };
     STATE.users.push(newUser);
     localStorage.setItem('bpr_users', JSON.stringify(STATE.users));
 
@@ -86,7 +106,14 @@ document.getElementById('form-login').addEventListener('submit', (e) => {
 });
 
 function doLogin(userObj) {
-    STATE.currentUser = { name: userObj.name, username: userObj.username };
+    // Always read permissions from the stored user list (not the arg) so changes stay in sync
+    const freshUser = STATE.users.find(u => u.username === userObj.username) || userObj;
+    STATE.currentUser = {
+        name: freshUser.name,
+        username: freshUser.username,
+        isAdmin: freshUser.isAdmin || false,
+        permissions: freshUser.permissions || {}
+    };
     localStorage.setItem('bpr_logged_user', JSON.stringify(STATE.currentUser));
     initAuth();
 }
@@ -119,6 +146,122 @@ document.getElementById('form-forgot').addEventListener('submit', (e) => {
         resultBox.classList.add('hidden');
     }
 });
+
+// --- Permission Management ---
+function hasPermission(perm) {
+    if (!STATE.currentUser) return false;
+    if (STATE.currentUser.isAdmin) return true;
+    return !!(STATE.currentUser.permissions && STATE.currentUser.permissions[perm]);
+}
+
+function checkPermissions() {
+    const cu = STATE.currentUser;
+    if (!cu) return;
+
+    // Helper: show/hide element by ID based on permission check
+    const set = (id, visible) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (visible) el.classList.remove('hidden');
+        else el.classList.add('hidden');
+    };
+
+    const canAccount = hasPermission('canAddAccount');
+    const canTx = hasPermission('canAddTransaction');
+    const canExcel = hasPermission('canImportExcel');
+
+    // "Yeni Hesap Aç" button is in the accounts header – wrap it in a hidden id
+    // We use querySelectorAll to target the specific button by closest section
+    const addAccBtn = document.querySelector('#view-accounts .btn-primary');
+    if (addAccBtn) {
+        if (canAccount) addAccBtn.classList.remove('hidden');
+        else addAccBtn.classList.add('hidden');
+    }
+
+    // Transaction buttons
+    const txButtons = document.querySelectorAll('#view-transactions .action-buttons .btn');
+    txButtons.forEach(btn => {
+        if (btn.textContent.trim().includes('Ekstre') || btn.textContent.trim().includes('Excel')) {
+            canExcel ? btn.classList.remove('hidden') : btn.classList.add('hidden');
+        } else {
+            canTx ? btn.classList.remove('hidden') : btn.classList.add('hidden');
+        }
+    });
+}
+
+function renderUsersAdmin() {
+    const container = document.getElementById('users-list-admin');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (STATE.users.length === 0) {
+        container.innerHTML = '<p class="text-muted">Henüz kayıtlı kullanıcı yok.</p>';
+        return;
+    }
+
+    const PERM_LABELS = [
+        { key: 'canAddAccount', label: 'Hesap Açma / Silme' },
+        { key: 'canAddTransaction', label: 'Fiş Girebilir (Gider/Gelir)' },
+        { key: 'canDeleteTransaction', label: 'Fiş Silebilir' },
+        { key: 'canImportExcel', label: 'Excel Ekstre Yükleyebilir' }
+    ];
+
+    STATE.users.forEach(u => {
+        const adminTag = u.isAdmin ? '<span class="admin-tag">Kurucu Admin</span>' : '';
+        const deleteBtn = u.isAdmin ? '' : `<button class="btn btn-danger btn-sm" onclick="deleteUser('${u.username}')"><i class="fa-solid fa-trash"></i> Kullanıcıyı Sil</button>`;
+
+        let permRowsHtml = '';
+        if (!u.isAdmin) {
+            const perms = u.permissions || {};
+            permRowsHtml = `<div class="permissions-grid">
+                ${PERM_LABELS.map(p => `
+                    <div class="permission-row">
+                        <label class="toggle-switch">
+                            <input type="checkbox" ${perms[p.key] ? 'checked' : ''} onchange="updatePermission('${u.username}', '${p.key}', this.checked)">
+                            <span class="slider"></span>
+                        </label>
+                        <span>${p.label}</span>
+                    </div>
+                `).join('')}
+            </div>`;
+        } else {
+            permRowsHtml = '<p class="text-muted text-small">Tüm yetkiler açık (Kurucu Admin – kısıtlanamaz)</p>';
+        }
+
+        container.innerHTML += `
+            <div class="user-card-admin">
+                <div class="user-header-row">
+                    <div class="user-name-badge">
+                        <i class="fa-solid fa-circle-user"></i> ${u.name} <small class="text-muted">(@${u.username})</small>${adminTag}
+                    </div>
+                    ${deleteBtn}
+                </div>
+                ${permRowsHtml}
+            </div>
+        `;
+    });
+}
+
+function updatePermission(username, permKey, value) {
+    const user = STATE.users.find(u => u.username === username);
+    if (!user || user.isAdmin) return;
+    if (!user.permissions) user.permissions = {};
+    user.permissions[permKey] = value;
+    localStorage.setItem('bpr_users', JSON.stringify(STATE.users));
+    // If the modified user is currently logged in, update session too
+    if (STATE.currentUser && STATE.currentUser.username === username) {
+        STATE.currentUser.permissions[permKey] = value;
+        localStorage.setItem('bpr_logged_user', JSON.stringify(STATE.currentUser));
+        checkPermissions();
+    }
+}
+
+function deleteUser(username) {
+    if (!confirm(`"${username}" adlı kullanıcıyı silmek istediğinizden emin misiniz?`)) return;
+    STATE.users = STATE.users.filter(u => u.username !== username);
+    localStorage.setItem('bpr_users', JSON.stringify(STATE.users));
+    renderUsersAdmin();
+}
 
 // --- Camera & Image Handling ---
 let cameraStream = null;
@@ -462,6 +605,7 @@ document.querySelectorAll('.nav-links li').forEach(item => {
         document.getElementById('page-title').innerText = e.currentTarget.innerText.trim();
 
         if (viewId === 'reports') initReports();
+        if (viewId === 'users') renderUsersAdmin();
     });
 });
 

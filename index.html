@@ -102,6 +102,8 @@
                 <li data-view="accounts"><i class="fa-solid fa-building-columns"></i> Hesaplar & Açılış</li>
                 <li data-view="transactions"><i class="fa-solid fa-money-bill-transfer"></i> Muhasebe İşlemleri</li>
                 <li data-view="reports"><i class="fa-solid fa-file-invoice-dollar"></i> Detaylı Raporlar</li>
+                <!-- Admin only -->
+                <li data-view="users" id="nav-users" class="hidden" style="border-top: 1px solid var(--border-color); margin-top:10px; padding-top:10px;"><i class="fa-solid fa-users-gear"></i> Kullanıcı Yönetimi</li>
             </ul>
         </nav>
 
@@ -203,6 +205,18 @@
                         <div class="content-box">
                             <h3>Tediye (Gider & Yatırım) Kırılımı</h3>
                             <ul class="breakdown-list" id="report-expense-breakdown"></ul>
+                        </div>
+                    </div>
+                </section>
+                <!-- Users Admin View -->
+                <section id="view-users" class="view-section hidden">
+                    <div class="section-header">
+                        <h2><i class="fa-solid fa-users-gear"></i> Kullanıcı Yönetimi (Admin Paneli)</h2>
+                    </div>
+                    <div class="content-box">
+                        <p class="text-muted text-small mb-10">Aşağıdaki tabloda tüm kayıtlı kullanıcılar listelenmektedir. Her kullanıcı için hangi özelliklere erişim iznini açıp kapatmak istiyorsanız ilgili düğmeyi kullanınız. Değişiklikler anında kaydedilir.</p>
+                        <div id="users-list-admin">
+                            <!-- Populated by JS -->
                         </div>
                     </div>
                 </section>
